@@ -10,3 +10,5 @@ wheels/
 .venv
 
 __tests__
+
+.env

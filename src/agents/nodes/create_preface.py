@@ -1,11 +1,10 @@
 from typing import TypedDict, Annotated
 from langchain_core.messages import HumanMessage, AIMessage
-from langchain_community.chat_models.openai import ChatOpenAI
 from src.agents.workflows.book_state import CreatePrefaceState
 import operator
 
 
-def create_preface_node(state: CreatePrefaceState, llm: ChatOpenAI) -> CreatePrefaceState:
+def create_preface_node(state: CreatePrefaceState) -> CreatePrefaceState:
     """
     LangGraph node that generates a preface for a book based on its title.
     
@@ -16,7 +15,7 @@ def create_preface_node(state: CreatePrefaceState, llm: ChatOpenAI) -> CreatePre
     Returns:
         Updated state with the generated preface
     """
-    book_title = state.get("book_title", "")
+    book_title = state.get("book_title")
     
     if not book_title:
         error_msg = "No book title provided. Please provide a book title to generate a preface."
@@ -39,11 +38,14 @@ def create_preface_node(state: CreatePrefaceState, llm: ChatOpenAI) -> CreatePre
     
     Write in a warm, engaging tone that would appeal to the book's intended audience.
     """
+
+    llm = state.get("llm")
     
     try:
         # Generate the preface using the LLM
         response = llm.invoke([HumanMessage(content=preface_prompt)])
         generated_preface = response.content
+        state["preface"] = generated_preface
         
         success_msg = f"Successfully generated preface for '{book_title}'"
         

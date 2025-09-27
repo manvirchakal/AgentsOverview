@@ -1,5 +1,4 @@
 from src.agents.workflows.book_state import CreatePrefaceState
-from langchain_community.chat_models.openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage
 from pydantic import BaseModel
 from typing import Optional
@@ -12,7 +11,7 @@ class ChapterResponseStructure(BaseModel):
     num_pages: Optional[int]
 
 
-def create_chapter_node(state: CreatePrefaceState, llm: ChatOpenAI) -> CreatePrefaceState:
+def create_chapter_node(state: CreatePrefaceState) -> CreatePrefaceState:
     """
     Node that generates a chapter for a book based on its title and preface.
     
@@ -37,13 +36,18 @@ def create_chapter_node(state: CreatePrefaceState, llm: ChatOpenAI) -> CreatePre
     chapters = state.get("chapters", [])
 
     # Create the prompt for generating a chapter
+    previous_chapters_str = "; ".join(map(str, chapters)) if chapters else "None"
     chapter_prompt = f"""
     Write the following chapter for a book titled "{book_title}" with the given preface and previous chapters:
 
     Preface: {preface}
 
-    Previous Chapters: {"; ".join(chapters) if chapters else "None"}
+    Previous Chapters: {previous_chapters_str}
+
+    I need the book to have 10-15 chapters
     """
+
+    llm = state.get("llm")
 
     try:
         resp = llm.with_structured_output(ChapterResponseStructure).invoke(
@@ -53,18 +57,19 @@ def create_chapter_node(state: CreatePrefaceState, llm: ChatOpenAI) -> CreatePre
         chapter_number = resp.chapter_number
         chapter_content = resp.chapter_content
         num_pages = resp.num_pages
-        state.is_done = resp.is_done
-        state.chapters.append(f"Chapter {chapter_number}:\n\n {chapter_content} \n({num_pages} pages)")
+        is_done = resp.is_done
+        state["is_done"] = is_done
+        chapter = f"Chapter {chapter_number}:\n\n {chapter_content} \n({num_pages} pages)"
+        chapters = state.get("chapters", [])
+        chapters.append(chapter)
+        state["chapters"] = chapters
 
         # Update the state with the new chapter information
+        # Keep `chapters` as a list[str] only to avoid type issues on subsequent joins
         return {
             **state,
             "messages": state["messages"] + [AIMessage(content="Chapter created successfully.")],
-            "chapters": state.get("chapters", []) + [{
-                "chapter_number": chapter_number,
-                "chapter_content": chapter_content,
-                "num_pages": num_pages
-            }]
+            "chapters": state.get("chapters", [])
         }
     except Exception as e:
         error_msg = f"Error occurred while creating chapter: {e}"
