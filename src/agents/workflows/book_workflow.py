@@ -29,7 +29,7 @@ def stream_workflow(
     Returns:
         Final state of the workflow after execution
     """
-    llm = ChatOpenAI(model="gpt-4.1", temperature=0.7, streaming=True, api_key=os.getenv("OPENAI_API_KEY"))
+    llm = ChatOpenAI(model="gpt-5-mini", temperature=0.7, reasoning="high", streaming=True, api_key=os.getenv("OPENAI_API_KEY"))
     
     initial_state: CreatePrefaceState = {
         "book_title": book_title,
